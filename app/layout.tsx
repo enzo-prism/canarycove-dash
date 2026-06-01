@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Canary Cove — Submissions",
-  description: "Website form submissions for canarycove.com",
+  metadataBase: new URL("https://canarycove-dash.vercel.app"),
+  title: "Canary Cove · Submissions",
+  description: "Form submissions from canarycove.com.",
 };
 
 export default function RootLayout({
