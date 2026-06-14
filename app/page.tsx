@@ -1,7 +1,7 @@
 import { Inbox } from "lucide-react";
 
 import { SubmissionsView } from "@/components/submissions-view";
-import { submissions } from "@/data/submissions";
+import { submissionImportSummary, submissions } from "@/data/submissions";
 
 export default function Page() {
   const sorted = [...submissions].sort(
@@ -28,7 +28,9 @@ export default function Page() {
         <SubmissionsView items={sorted} />
 
         <footer className="mt-10 text-center text-xs text-muted-foreground">
-          Data curated from Formspree exports · spam filtered
+          {submissionImportSummary.rawRows} raw Formspree rows ·{" "}
+          {submissionImportSummary.visibleRows} guest enquiries ·{" "}
+          {submissionImportSummary.filteredRows} spam/test rows filtered
         </footer>
       </div>
     </main>

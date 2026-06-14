@@ -12,6 +12,7 @@ import {
   LayoutList,
   Table2,
   BarChart3,
+  MousePointer2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,35 @@ function TypeBadge({ type }: { type: Submission["type"] }) {
       <Icon className="size-3" />
       {type}
     </Badge>
+  );
+}
+
+function friendlyReferrer(value: string) {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return value;
+  }
+}
+
+function originParts(s: Submission) {
+  const parts = [];
+  if (s.sourceForm) parts.push(`${s.sourceForm} form`);
+  if (s.pagePath) parts.push(s.pagePath);
+  if (s.referral) parts.push(`referral: ${s.referral.replace(/-/g, " ")}`);
+  if (s.referrer) parts.push(`from ${friendlyReferrer(s.referrer)}`);
+  return parts;
+}
+
+function OriginMeta({ submission }: { submission: Submission }) {
+  const parts = originParts(submission);
+  if (!parts.length) return null;
+
+  return (
+    <div className="inline-flex max-w-full items-start gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-xs leading-relaxed text-muted-foreground">
+      <MousePointer2 className="mt-0.5 size-3.5 shrink-0" />
+      <span className="min-w-0">{parts.join(" · ")}</span>
+    </div>
   );
 }
 
@@ -181,6 +211,8 @@ function ListView({ items }: { items: Submission[] }) {
                 )}
               </div>
 
+              <OriginMeta submission={s} />
+
               {(s.arrival || s.guests) && (
                 <div className="flex flex-wrap gap-x-6 gap-y-1.5 rounded-lg bg-muted/50 px-3 py-2 text-sm">
                   {s.arrival && s.departure && (
@@ -237,6 +269,9 @@ function TableView({ items }: { items: Submission[] }) {
                   <div className="truncate font-medium">{s.name}</div>
                   <div className="text-xs text-muted-foreground">
                     {date} · {time} UTC
+                  </div>
+                  <div className="mt-1">
+                    <OriginMeta submission={s} />
                   </div>
                 </div>
                 <TypeBadge type={s.type} />
@@ -312,6 +347,9 @@ function TableView({ items }: { items: Submission[] }) {
                 <TableCell className="whitespace-nowrap text-muted-foreground">
                   <div>{date}</div>
                   <div className="text-xs">{time} UTC</div>
+                  <div className="mt-1 whitespace-normal">
+                    <OriginMeta submission={s} />
+                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex max-w-[170px] flex-col gap-0.5">
