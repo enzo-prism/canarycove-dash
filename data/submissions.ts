@@ -1,8 +1,8 @@
 // Canary Cove website form submissions.
 //
-// Source: Formspree JSON exports refreshed 2026-06-14. The visible list keeps
-// genuine guest enquiries and filters obvious bot/test rows so staff can work
-// from a clean inbox. See submissionImportSummary for the full raw count.
+// Source: Formspree API exports refreshed 2026-07-08T17:32:50Z.
+// The visible list keeps genuine guest enquiries and filters obvious bot/test rows
+// so staff can work from a clean inbox. See submissionImportSummary for the full raw count.
 //
 // Contact form: formspree_xvzarybk
 // Booking form: formspree_xqeqllek
@@ -27,19 +27,50 @@ export interface Submission {
 }
 
 export const submissionImportSummary = {
-  "exportedAt": "2026-06-14T20:20:26Z",
-  "rawRows": 28,
-  "visibleRows": 16,
-  "filteredRows": 12,
+  "exportedAt": "2026-07-08T17:32:50Z",
+  "rawRows": 31,
+  "visibleRows": 18,
+  "filteredRows": 13,
   "contactRows": 15,
-  "bookingRows": 13,
+  "bookingRows": 16,
   "sourceFiles": [
-    "formspree_xvzarybk_2026-06-14T20_20_26_export.json",
-    "formspree_xqeqllek_2026-06-14T20_20_11_export.json"
+    "Formspree API xvzarybk contact all-pages export",
+    "Formspree API xqeqllek booking all-pages export"
   ]
 } as const;
 
 export const submissions: Submission[] = [
+  {
+    id: "b-20260706-grace-barfield",
+    type: "booking",
+    name: "Grace Barfield",
+    email: "grace@foundluxurytravel.com",
+    phone: "+1 713-553-4033",
+    date: "2026-07-06T21:56:27.188Z",
+    arrival: "2026-12-21",
+    departure: "2026-12-28",
+    guests: "1 adult",
+    message: "Honeymoon",
+    pagePath: "/book",
+    referral: "google",
+    sourceForm: "booking",
+  },
+  {
+    id: "b-20260627-carla-sears",
+    type: "booking",
+    name: "Carla Sears",
+    email: "goodjobgoodjob@bellsouth.net",
+    phone: "+1 205-222-4118",
+    date: "2026-06-27T17:45:01.419Z",
+    arrival: "2026-12-12",
+    departure: "2026-12-19",
+    guests: "8 adults",
+    message: "golf cart for stay service to and from the airport",
+    pagePath: "/book",
+    referral: "other-search",
+    referrer: "https://www.google.com/",
+    sourceForm: "booking",
+  },
   {
     id: "b-20260613-lyles-eddins",
     type: "booking",
@@ -125,7 +156,7 @@ export const submissions: Submission[] = [
     type: "booking",
     name: "Bryant Craig",
     email: "craigdvm@gmail.com",
-    phone: "580-541-7004",
+    phone: "+1 580-541-7004",
     date: "2026-05-16T13:18:46.038Z",
     arrival: "2026-09-12",
     departure: "2026-09-19",
@@ -141,7 +172,7 @@ export const submissions: Submission[] = [
     type: "booking",
     name: "Bryant Craig",
     email: "craigdvm@gmail.com",
-    phone: "580-541-7004",
+    phone: "+1 580-541-7004",
     date: "2026-05-02T15:45:08.185Z",
     arrival: "2026-09-13",
     departure: "2026-09-19",
@@ -178,7 +209,7 @@ export const submissions: Submission[] = [
     type: "booking",
     name: "Jon Kurtyka",
     email: "jonkurtyka@yahoo.com",
-    phone: "215-292-1040",
+    phone: "+1 215-292-1040",
     date: "2026-04-27T15:46:02.589Z",
     arrival: "2026-05-21",
     departure: "2026-05-24",
@@ -215,7 +246,7 @@ export const submissions: Submission[] = [
     type: "booking",
     name: "Erin Jones",
     email: "erinj58@yahoo.com",
-    phone: "470-460-0412",
+    phone: "+1 470-460-0412",
     date: "2026-04-24T06:14:57.611Z",
     arrival: "2027-04-15",
     departure: "2027-04-19",
@@ -241,5 +272,5 @@ export const submissions: Submission[] = [
     date: "2026-04-20T21:15:35.493Z",
     message: "Hello, I am working with MarAlliance, and Canary Cove is listed as the preferred accommodations for our February trips. I am attempting to automate our system for reservations and payments by using the WeTravel platform. Is there someone I can email an invitation to? I also need to check availability and rates for Feb 20-27th 2027. Please feel free to reach out to me. I don't have much information in my notes. Thank you! Lori Devine Expeditions Coordinator",
     sourceForm: "contact",
-  }
+  },
 ];
