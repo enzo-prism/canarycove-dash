@@ -7,6 +7,12 @@ export default function Page() {
   const sorted = [...submissions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
+  const reconciledDate = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(submissionImportSummary.exportedAt));
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -30,7 +36,8 @@ export default function Page() {
         <footer className="mt-10 text-center text-xs text-muted-foreground">
           {submissionImportSummary.rawRows} raw Formspree rows ·{" "}
           {submissionImportSummary.visibleRows} guest enquiries ·{" "}
-          {submissionImportSummary.filteredRows} spam/test rows filtered
+          {submissionImportSummary.filteredRows} spam/test rows filtered ·{" "}
+          reconciled {reconciledDate}
         </footer>
       </div>
     </main>
