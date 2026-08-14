@@ -1,6 +1,6 @@
 // Canary Cove website form submissions.
 //
-// Source: Formspree delivery notifications reconciled through 2026-07-29T19:24:40Z.
+// Source: Formspree delivery notifications reconciled through 2026-08-13 via Gmail Formspree notifications.
 // The visible list keeps genuine guest enquiries and filters obvious bot/test rows
 // so staff can work from a clean inbox. See submissionImportSummary for the full raw count.
 // Homepage email-capture submissions are tracked separately and are not part of this
@@ -29,11 +29,11 @@ export interface Submission {
 }
 
 export const submissionImportSummary = {
-  "exportedAt": "2026-07-29T19:24:40Z",
-  "rawRows": 37,
-  "visibleRows": 18,
-  "filteredRows": 19,
-  "contactRows": 19,
+  "exportedAt": "2026-08-14T02:55:44Z",
+  "rawRows": 39,
+  "visibleRows": 19,
+  "filteredRows": 20,
+  "contactRows": 21,
   "bookingRows": 18,
   "excludedEmailCaptureRows": 2,
   "sourceFiles": [
@@ -43,6 +43,17 @@ export const submissionImportSummary = {
 } as const;
 
 export const submissions: Submission[] = [
+  {
+    id: "c-20260805-sue-rob-keller",
+    type: "contact",
+    name: "Sue & Rob Keller",
+    email: "skuck2011@gmail.com",
+    date: "2026-08-05T23:18:50.000Z",
+    message: "Hello Gil & Consi!\nHow are you?\n\nI know we just saw you guys in March when we were there with Trent & Sonja but we want to come back and see you in 2027!\n\nRob & I would like to bring two new couples to the island.....we are thinking February 20th to the 27th. Can you tell me if the villa is available that week?\n\nIt would be 3 couples (total of 6 adults) and two young kids (ages 11 & 9) so we would utilize the bunk room for them.\n\nLooking forward to hearing back from you soon! Thank you!\n\nSue",
+    pagePath: "/contact",
+    referrer: "https://www.google.com/",
+    sourceForm: "contact",
+  },
   {
     id: "b-20260706-grace-barfield",
     type: "booking",
