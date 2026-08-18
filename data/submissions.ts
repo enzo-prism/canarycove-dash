@@ -1,6 +1,6 @@
 // Canary Cove website form submissions.
 //
-// Source: Formspree delivery notifications reconciled through 2026-08-13 via Gmail Formspree notifications.
+// Source: Direct Formspree API exports reconciled through 2026-08-18.
 // The visible list keeps genuine guest enquiries and filters obvious bot/test rows
 // so staff can work from a clean inbox. See submissionImportSummary for the full raw count.
 // Homepage email-capture submissions are tracked separately and are not part of this
@@ -29,7 +29,7 @@ export interface Submission {
 }
 
 export const submissionImportSummary = {
-  "exportedAt": "2026-08-14T02:55:44Z",
+  "exportedAt": "2026-08-18T23:27:53Z",
   "rawRows": 39,
   "visibleRows": 19,
   "filteredRows": 20,
@@ -37,8 +37,8 @@ export const submissionImportSummary = {
   "bookingRows": 18,
   "excludedEmailCaptureRows": 2,
   "sourceFiles": [
-    "Gmail Formspree notifications for xvzarybk contact submissions",
-    "Gmail Formspree notifications for xqeqllek booking submissions"
+    "Formspree API xvzarybk contact all-pages export",
+    "Formspree API xqeqllek booking all-pages export"
   ]
 } as const;
 
