@@ -1,5 +1,10 @@
 // Canary Cove website form submissions.
 //
+// Canonical operating procedure: README.md. Formspree is the raw intake source;
+// this curated dashboard is the operational lead source of truth. Do not notify
+// Consi directly or add her as a Formspree recipient. Reconcile genuine rows here,
+// deploy, and verify the production dashboard instead.
+//
 // Source: Direct Formspree API exports reconciled through 2026-08-18.
 // The visible list keeps genuine guest enquiries and filters obvious bot/test rows
 // so staff can work from a clean inbox. See submissionImportSummary for the full raw count.
