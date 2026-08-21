@@ -328,7 +328,7 @@ function TableView({ items }: { items: Submission[] }) {
           <TableRow className="hover:bg-transparent">
             <TableHead className="w-[92px]">Type</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead className="w-[112px]">Contacted</TableHead>
+            <TableHead className="w-[112px]">Submitted</TableHead>
             <TableHead>Contact</TableHead>
             <TableHead>Trip</TableHead>
             <TableHead>Message</TableHead>

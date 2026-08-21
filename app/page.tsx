@@ -37,7 +37,7 @@ export default function Page() {
           {submissionImportSummary.rawRows} raw Formspree rows ·{" "}
           {submissionImportSummary.visibleRows} guest enquiries ·{" "}
           {submissionImportSummary.filteredRows} spam/test rows filtered ·{" "}
-          reconciled {reconciledDate}
+          Formspree reconciled through {reconciledDate}
         </footer>
       </div>
     </main>
