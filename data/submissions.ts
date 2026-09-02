@@ -20,12 +20,12 @@ export interface Submission {
 }
 
 export const submissionImportSummary = {
-  "exportedAt": "2026-08-21T17:49:01.000Z",
-  "rawRows": 39,
-  "visibleRows": 19,
+  "exportedAt": "2026-09-02T23:57:44.000Z",
+  "rawRows": 40,
+  "visibleRows": 20,
   "filteredRows": 20,
   "contactRows": 21,
-  "bookingRows": 18,
+  "bookingRows": 19,
   "excludedEmailCaptureRows": 2,
   "reviewRows": 0,
   "sourceFiles": [
@@ -35,6 +35,22 @@ export const submissionImportSummary = {
 } as const;
 
 export const submissions: Submission[] = [
+  {
+    "id": "b-20260830-katie-gump",
+    "type": "booking",
+    "name": "Katie Gump",
+    "email": "gumpkatie@gmail.com",
+    "phone": "+1 330-240-4404",
+    "date": "2026-08-30T23:09:35.000Z",
+    "arrival": "2027-03-13",
+    "departure": "2027-03-20",
+    "guests": "8 adults, 1 child",
+    "message": "Main House. Returning guest. friend hang out; secret beach; snorkel; possible dives? Hi Gil! Hi Consi!",
+    "pagePath": "/book",
+    "referral": "returning-guest",
+    "referrer": "https://www.google.com/",
+    "sourceForm": "booking"
+  },
   {
     "id": "c-20260805-sue-rob-keller",
     "type": "contact",
