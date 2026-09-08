@@ -20,12 +20,12 @@ export interface Submission {
 }
 
 export const submissionImportSummary = {
-  "exportedAt": "2026-09-02T23:57:44.000Z",
-  "rawRows": 40,
-  "visibleRows": 20,
+  "exportedAt": "2026-09-08T21:07:16.000Z",
+  "rawRows": 41,
+  "visibleRows": 21,
   "filteredRows": 20,
   "contactRows": 21,
-  "bookingRows": 19,
+  "bookingRows": 20,
   "excludedEmailCaptureRows": 2,
   "reviewRows": 0,
   "sourceFiles": [
@@ -35,6 +35,20 @@ export const submissionImportSummary = {
 } as const;
 
 export const submissions: Submission[] = [
+  {
+    "id": "b-20260908-bruce-goldstein",
+    "type": "booking",
+    "name": "Bruce Goldstein",
+    "email": "brugomail@yahoo.com",
+    "phone": "77203461234",
+    "date": "2026-09-08T20:47:38.000Z",
+    "arrival": "2026-12-31",
+    "departure": "2027-01-03",
+    "guests": "6 adults",
+    "message": "Villa",
+    "pagePath": "/book",
+    "sourceForm": "booking"
+  },
   {
     "id": "b-20260830-katie-gump",
     "type": "booking",
