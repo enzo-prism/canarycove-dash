@@ -18,3 +18,18 @@ export interface Submission {
   referrer?: string;
   sourceForm?: string;
 }
+
+export const submissionImportSummary = {
+  exportedAt: "2026-09-15T15:17:43.000Z",
+  rawRows: 46,
+  visibleRows: 24,
+  filteredRows: 22,
+  contactRows: 23,
+  bookingRows: 23,
+  excludedEmailCaptureRows: 2,
+  reviewRows: 0,
+  sourceFiles: [
+    "Formspree API xvzarybk contact complete export",
+    "Formspree API xqeqllek booking complete export"
+  ]
+} as const;
