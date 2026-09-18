@@ -319,6 +319,34 @@ test("zero-delta apply preserves curated existing fields while mapping a new lea
   assert.notEqual(merged.find((lead) => lead.id === "existing-id"), curated)
 })
 
+test("apply merge keeps Typeform held leads that are not in Formspree exports", () => {
+  const formspreeLead = {
+    id: "existing-id",
+    type: "booking",
+    name: "Grace Barfield",
+    email: "grace@example.com",
+    date: "2026-08-01T00:00:00.000Z",
+    sourceForm: "booking",
+  }
+  const heldLead = {
+    id: "c-20260918-held-guest",
+    type: "contact",
+    name: "Held Guest",
+    email: "held@example.com",
+    phone: "+1 555-0100",
+    date: "2026-09-18T12:42:18.000Z",
+    message: "Typeform",
+    sourceForm: "typeform",
+  }
+  const merged = mergeExistingSubmissions([formspreeLead], [heldLead, formspreeLead])
+  assert.deepEqual(merged.map((lead) => lead.id), ["c-20260918-held-guest", "existing-id"])
+  assert.deepEqual(merged.find((lead) => lead.id === "c-20260918-held-guest"), heldLead)
+  assert.throws(
+    () => mergeExistingSubmissions([{ ...formspreeLead, id: heldLead.id }], [heldLead]),
+    /collides with a source row/,
+  )
+})
+
 test("apply merge rejects duplicate IDs and changed exact source identity", () => {
   const lead = { id: "same-id", type: "contact", name: "Guest", email: "guest@example.com", date: "2026-08-01T00:00:00Z", sourceForm: "contact" }
   assert.throws(() => mergeExistingSubmissions([lead, { ...lead }], []), /maps to multiple source rows/)
