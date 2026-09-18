@@ -2,6 +2,16 @@ import type { Submission } from "./submission-types";
 
 export const recentSubmissions: Submission[] = [
   {
+    id: "c-20260918-amelia-young",
+    type: "contact",
+    name: "Amelia Young",
+    email: "amelia@thepixelcloudstudio.com",
+    phone: "+1 814-980-5065",
+    date: "2026-09-18T12:42:18.000Z",
+    message: "Typeform",
+    sourceForm: "typeform"
+  },
+  {
     id: "b-20260915-andrea-stohlmann",
     type: "booking",
     name: "Andrea Stohlmann",
