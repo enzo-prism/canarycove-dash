@@ -2,6 +2,17 @@ import type { Submission } from "./submission-types";
 
 export const recentSubmissions: Submission[] = [
   {
+    id: "c-20261021-christina-gad",
+    type: "contact",
+    name: "Christina Gad",
+    email: "gad.christina@gmail.com",
+    date: "2026-10-21T14:38:00.000Z",
+    message: "Dates & pricing. Looking to book the whole property for 4-5 families, 5-6 nights, anywhere between March 5 and 12, 2027. The site says whole-property stays are for returning guests only; asking for an exception.",
+    pagePath: "/contact",
+    referrer: "https://www.google.com/",
+    sourceForm: "contact"
+  },
+  {
     id: "c-20260918-amelia-young",
     type: "contact",
     name: "Amelia Young",

@@ -10,11 +10,11 @@ import { oldASubmissions } from "./submissions-old-a";
 import { oldBSubmissions } from "./submissions-old-b";
 
 export const submissionImportSummary = {
-  exportedAt: "2026-09-18T15:00:00.000Z",
-  rawRows: 46,
-  visibleRows: 25,
+  exportedAt: "2026-10-21T15:00:00.000Z",
+  rawRows: 47,
+  visibleRows: 26,
   filteredRows: 22,
-  contactRows: 23,
+  contactRows: 24,
   bookingRows: 23,
   excludedEmailCaptureRows: 2,
   reviewRows: 0,
