@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { readFile, rename, mkdir, writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
+import { registerHooks } from "node:module"
 import process from "node:process"
-import { FORM_IDS, freshManifest, reconcile, renderSubmissionsModule, rowsFromCompleteExport, seedExisting } from "./reconcile.mjs"
+import { FORM_IDS, applyIdentityCorrections, freshManifest, reconcile, renderSubmissionsModule, rowsFromCompleteExport, seedExisting } from "./reconcile.mjs"
 
 function usage() {
   return `Usage:
@@ -11,6 +12,7 @@ function usage() {
 Options:
   --manifest <path>  Private decision manifest (default: data/private/formspree-reconciliation.json)
   --exported-at <ISO> Export timestamp; defaults to the later export's exportedAt
+  --identity-corrections <path> Private reviewed exact timestamp corrections (requires --apply)
   --write             Save new review decisions to the private manifest
   --apply             Write the manifest and regenerate data/submissions.ts (requires zero review rows)
   --seed-existing     Strictly seed a new manifest from the current dashboard and summary
@@ -28,7 +30,7 @@ function parseArgs(argv) {
     else if (arg === "--write") options.write = true
     else if (arg === "--apply") options.apply = true
     else if (arg === "--seed-existing") options.seed_existing = true
-    else if (["--contact", "--booking", "--manifest", "--exported-at"].includes(arg)) {
+    else if (["--contact", "--booking", "--manifest", "--exported-at", "--identity-corrections"].includes(arg)) {
       const value = argv[index + 1]
       if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value`)
       options[arg.slice(2).replaceAll("-", "_")] = value
@@ -48,6 +50,31 @@ async function optionalManifest(path) {
   } catch (error) {
     if (error?.code === "ENOENT") return freshManifest()
     throw error
+  }
+}
+
+async function existingDashboard() {
+  const dataDirectory = new URL("../../data/", import.meta.url)
+  // Node's native TypeScript stripping does not resolve extensionless imports.
+  // The checked-in dashboard data uses those imports for its split row files.
+  // Limit this temporary resolver to relative imports within the data directory.
+  const hooks = registerHooks({
+    resolve(specifier, context, nextResolve) {
+      try {
+        return nextResolve(specifier, context)
+      } catch (error) {
+        if (error.code !== "ERR_MODULE_NOT_FOUND" || !specifier.startsWith(".")
+          || !context.parentURL?.startsWith(dataDirectory.href)) throw error
+        const target = new URL(specifier, context.parentURL)
+        if (!target.href.startsWith(dataDirectory.href) || /\.[^/]+$/.test(target.pathname)) throw error
+        return nextResolve(`${target.href}.ts`, context)
+      }
+    },
+  })
+  try {
+    return await import(new URL(`submissions.ts?apply=${Date.now()}`, dataDirectory))
+  } finally {
+    hooks.deregister()
   }
 }
 
@@ -76,6 +103,7 @@ async function main() {
     return
   }
   if (!options.contact || !options.booking) throw new Error("Both --contact and --booking complete exports are required")
+  if (options.identity_corrections && !options.apply) throw new Error("--identity-corrections requires --apply")
 
   const contactBundle = await json(resolve(options.contact))
   const bookingBundle = await json(resolve(options.booking))
@@ -85,7 +113,7 @@ async function main() {
   const manifestPath = resolve(options.manifest)
   const manifest = await optionalManifest(manifestPath)
   const existing = options.seed_existing || options.apply
-    ? await import(new URL(`../../data/submissions.ts?apply=${Date.now()}`, import.meta.url))
+    ? await existingDashboard()
     : undefined
   let result
   if (options.seed_existing) {
@@ -101,13 +129,24 @@ async function main() {
     result = reconcile({ contactRows, bookingRows, manifest, exportedAt })
   }
 
-  console.log(JSON.stringify({ mode: options.apply ? "apply" : options.write ? "write-manifest" : "dry-run", summary: result.summary, delta: result.delta, reviewKeys: result.reviewKeys }, null, 2))
-
-  if (options.write || options.apply) await atomicJson(manifestPath, result.manifest)
+  // Validate the complete proposed dashboard before changing either output.
+  // In particular, a stale curated row must not advance the private baseline
+  // when the dashboard cannot be regenerated from the same source identities.
+  let rendered
+  let correctionCount = 0
   if (options.apply) {
     if (result.reviewKeys.length) throw new Error("Dashboard not changed: resolve every review row in the private manifest, then rerun --apply")
-    await atomicText(resolve("data/submissions.ts"), renderSubmissionsModule(result, existing?.submissions))
+    let curated = existing?.submissions
+    if (options.identity_corrections) {
+      const corrections = await json(resolve(options.identity_corrections))
+      curated = applyIdentityCorrections(result, curated, corrections)
+      correctionCount = corrections.length
+    }
+    rendered = renderSubmissionsModule(result, curated)
   }
+  console.log(JSON.stringify({ mode: options.apply ? "apply" : options.write ? "write-manifest" : "dry-run", summary: result.summary, delta: result.delta, reviewKeys: result.reviewKeys, correctionCount }, null, 2))
+  if (options.write || options.apply) await atomicJson(manifestPath, result.manifest)
+  if (options.apply) await atomicText(resolve("data/submissions.ts"), rendered)
 }
 
 main().catch((error) => {

@@ -34,9 +34,11 @@ export default function Page() {
         <SubmissionsView items={sorted} />
 
         <footer className="mt-10 text-center text-xs text-muted-foreground">
-          {submissionImportSummary.rawRows} raw Formspree rows ·{" "}
-          {submissionImportSummary.visibleRows} guest enquiries ·{" "}
+          {submissionImportSummary.rawRows} contact/booking submissions reviewed ·{" "}
+          {submissionImportSummary.formspreeVisibleRows} Formspree enquiries ·{" "}
+          {submissionImportSummary.heldRows} preserved Typeform enquiry ·{" "}
           {submissionImportSummary.filteredRows} spam/test rows filtered ·{" "}
+          {submissionImportSummary.excludedEmailCaptureRows} email signups tracked separately ·{" "}
           Formspree reconciled through {reconciledDate}
         </footer>
       </div>

@@ -248,7 +248,7 @@ export function SubmissionsGraph({ items }: { items: Submission[] }) {
               className="inline-flex items-center gap-1 text-sm font-medium"
               style={{ color: LINE }}
             >
-              <TrendingUp className="size-4" />+{model.recent} in last 14 days
+              <TrendingUp className="size-4" />{model.recent} in 14 days ending {shortDate(model.tLast)}
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -469,13 +469,13 @@ export function SubmissionsGraph({ items }: { items: Submission[] }) {
           className="border-b sm:border-r"
         />
         <Stat
-          label="Bookings"
+          label="Booking requests"
           value={model.bookings}
           className="border-b sm:border-r"
         />
-        <Stat label="Contacts" value={model.contacts} className="border-b" />
+        <Stat label="Contact requests" value={model.contacts} className="border-b" />
         <Stat
-          label="Unique People"
+          label="Unique senders"
           value={model.uniquePeople}
           className="border-b sm:border-b-0 sm:border-r"
         />
@@ -520,8 +520,7 @@ export function SubmissionsGraph({ items }: { items: Submission[] }) {
             ))}
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Multiple submissions from the same email — likely still awaiting a
-            reply.
+            Separate submissions from the same email. Reply status is not tracked.
           </p>
         </div>
       )}

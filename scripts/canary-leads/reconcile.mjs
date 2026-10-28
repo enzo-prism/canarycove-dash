@@ -6,7 +6,8 @@ export const FORM_IDS = Object.freeze({
 })
 
 const CLASSIFICATIONS = new Set(["lead", "spam", "email_capture", "review"])
-const APPROVED_READER_ROWS = Symbol("approvedFormspreeReaderRows")
+const FALLBACK_IDENTITY_ROWS = Symbol("verifiedFormspreeExportRows")
+const EXPORT_TRANSPORT = Symbol("formspreeExportTransport")
 
 function text(value) {
   if (value === null || value === undefined) return undefined
@@ -37,10 +38,41 @@ function pageRows(page) {
  * Accepts the canonical complete-export bundle documented in README.md. A raw
  * one-page Formspree response is accepted only when its pagination proves that
  * it is the sole page. Naked arrays are deliberately rejected.
+ * Official dashboard downloads without provider IDs use an explicit wrapper:
+ * { source: "formspree-dashboard-export", formId, exportedAt, complete: true,
+ *   expectedCount, inboxCount, spamCount, submissions }.
+ * Copy submissions from the official JSON download; record the independently
+ * observed UI totals, including Spam. Do not infer completeness from row count
+ * alone. These rows share the reader's exact timestamp/email identity rules.
  */
 export function rowsFromCompleteExport(bundle, expectedFormId) {
   if (!bundle || Array.isArray(bundle) || typeof bundle !== "object") {
     throw new Error("Export must be an object with completeness metadata; naked row arrays are unsafe")
+  }
+
+  // The official dashboard download omits provider IDs. Its wrapper must carry
+  // the independently observed Inbox/Spam totals so a partial download is not
+  // mistaken for a complete source snapshot.
+  if (bundle.source === "formspree-dashboard-export") {
+    if (bundle.formId !== expectedFormId) throw new Error("Dashboard export formId does not match expected form")
+    if (bundle.complete !== true) throw new Error("Dashboard export must explicitly declare complete:true")
+    if (!bundle.exportedAt || Number.isNaN(Date.parse(bundle.exportedAt))) {
+      throw new Error("Dashboard export requires a valid exportedAt timestamp")
+    }
+    for (const field of ["expectedCount", "inboxCount", "spamCount"]) {
+      if (!Number.isInteger(bundle[field]) || bundle[field] < 0) {
+        throw new Error(`Dashboard export ${field} must be a non-negative integer`)
+      }
+    }
+    if (bundle.expectedCount !== bundle.inboxCount + bundle.spamCount) {
+      throw new Error("Dashboard export expectedCount must equal Inbox plus Spam counts")
+    }
+    if (!Array.isArray(bundle.submissions) || bundle.submissions.length !== bundle.expectedCount) {
+      throw new Error("Incomplete dashboard export: submissions must match expectedCount")
+    }
+    Object.defineProperty(bundle.submissions, FALLBACK_IDENTITY_ROWS, { value: "dashboard-export" })
+    Object.defineProperty(bundle.submissions, EXPORT_TRANSPORT, { value: "Formspree dashboard JSON export" })
+    return bundle.submissions
   }
 
   if (bundle.form && typeof bundle.form === "object" && bundle.result) {
@@ -58,7 +90,7 @@ export function rowsFromCompleteExport(bundle, expectedFormId) {
     if (!Number.isInteger(fetchedCount) || fetchedCount !== submissions.length) {
       throw new Error("Reader export fetched_count must exactly match submissions.length")
     }
-    Object.defineProperty(submissions, APPROVED_READER_ROWS, { value: true })
+    Object.defineProperty(submissions, FALLBACK_IDENTITY_ROWS, { value: "approved-reader" })
     return submissions
   }
 
@@ -136,10 +168,19 @@ export function normalizeRows(rows, formType) {
   if (!formId) throw new Error(`Unknown form type: ${formType}`)
   const unique = new Map()
 
-  const approvedReaderRows = rows[APPROVED_READER_ROWS] === true
+  const fallbackIdentitySource = rows[FALLBACK_IDENTITY_ROWS]
   for (const row of rows) {
     const providerId = first(row, ["id", "_id", "submission_id", "submissionId"])
-    const submittedAt = first(row, ["submittedAt", "submitted_at", "createdAt", "created_at", "timestamp", "date", "_date"])
+    const explicitTimestamp = first(row, ["submittedAt", "submitted_at", "createdAt", "created_at", "timestamp", "date"])
+    const formspreeDate = first(row, ["_date"])
+    // Formspree downloads/readers emit timezone-less _date values in UTC,
+    // sometimes with microseconds. Date.parse otherwise uses the host timezone.
+    // Explicit submittedAt/createdAt fields retain their existing semantics.
+    const submittedAt = explicitTimestamp ?? (
+      fallbackIdentitySource && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(formspreeDate ?? "")
+        ? `${formspreeDate}Z`
+        : formspreeDate
+    )
     if (!submittedAt || Number.isNaN(Date.parse(submittedAt))) {
       throw new Error(`Every ${formId} row needs a valid submission timestamp`)
     }
@@ -158,9 +199,9 @@ export function normalizeRows(rows, formType) {
     if (providerId) {
       key = `${formId}:${providerId}`
       identity = "provider-id"
-    } else if (approvedReaderRows) {
+    } else if (fallbackIdentitySource) {
       const email = first(data, ["email", "_replyto"])?.toLowerCase()
-      if (!email) throw new Error(`Approved reader row for ${formId} without a provider ID requires an email`)
+      if (!email) throw new Error(`${fallbackIdentitySource} row for ${formId} without a provider ID requires an email`)
       const digest = createHash("sha256").update(`${formId}\n${normalizedDate}\n${email}`).digest("hex")
       key = `${formId}:fallback:${digest}`
       identity = "timestamp-email-fallback"
@@ -170,7 +211,7 @@ export function normalizeRows(rows, formType) {
     const normalized = { key, formId, formType, providerId, submittedAt: normalizedDate, data, identity }
     const prior = unique.get(key)
     if (prior && identity === "timestamp-email-fallback") {
-      throw new Error(`Ambiguous approved-reader fallback identity for ${key}`)
+      throw new Error(`Ambiguous ${fallbackIdentitySource} fallback identity for ${key}`)
     }
     if (prior && fingerprint(prior) !== fingerprint(normalized)) {
       throw new Error(`Conflicting duplicate submission ${key}`)
@@ -272,8 +313,8 @@ export function reconcile({ contactRows, bookingRows, manifest = freshManifest()
     excludedEmailCaptureRows: emailCapture.length,
     reviewRows: review.length,
     sourceFiles: [
-      `Formspree API ${FORM_IDS.contact} contact complete export`,
-      `Formspree API ${FORM_IDS.booking} booking complete export`,
+      `${contactRows[EXPORT_TRANSPORT] ?? "Formspree API"} ${FORM_IDS.contact} contact complete export`,
+      `${bookingRows[EXPORT_TRANSPORT] ?? "Formspree API"} ${FORM_IDS.booking} booking complete export`,
     ],
   }
 
@@ -394,7 +435,10 @@ function toSubmission(row) {
     }
     const childGuests = first(data, ["childGuests", "child_guests"])
     const adultText = `${adultCount} ${adultCount === 1 ? "adult" : "adults"}`
-    guests = childGuests && childGuests !== "0" ? `${adultText}, ${childGuests}` : adultText
+    const childText = childGuests && /^\d+$/.test(childGuests)
+      ? Number(childGuests) === 0 ? undefined : `${childGuests} ${Number(childGuests) === 1 ? "child" : "children"}`
+      : childGuests
+    guests = childText ? `${adultText}, ${childText}` : adultText
   }
   const submission = {
     id: row.decision.dashboardId,
@@ -423,10 +467,59 @@ export function renderSubmissionsModule(result, existingSubmissions = []) {
   const summary = {
     ...result.summary,
     visibleRows: mergedLeads.length,
+    formspreeVisibleRows: result.leads.length,
+    heldRows: mergedLeads.length - result.leads.length,
+    sourceFiles: [
+      ...result.summary.sourceFiles,
+      ...[...new Set(mergedLeads.filter(isHeldLead).map((lead) => lead.sourceForm))]
+        .sort()
+        .map((source) => `Preserved ${source} inquiries (outside Formspree reconciliation)`),
+    ],
   }
   const serializedSummary = JSON.stringify(summary, null, 2)
   const serializedLeads = JSON.stringify(mergedLeads, null, 2)
   return `// Generated by pnpm leads:reconcile --apply. Do not edit by hand.\n\nexport type SubmissionType = "booking" | "contact";\n\nexport interface Submission {\n  id: string;\n  type: SubmissionType;\n  name: string;\n  email: string;\n  phone?: string;\n  date: string;\n  message?: string;\n  arrival?: string;\n  departure?: string;\n  guests?: string;\n  pagePath?: string;\n  referral?: string;\n  referrer?: string;\n  sourceForm?: string;\n}\n\nexport const submissionImportSummary = ${serializedSummary} as const;\n\nexport const submissions: Submission[] = ${serializedLeads};\n`
+}
+
+/** Apply only an explicitly reviewed timestamp correction, retaining strict
+ * source identity validation and every other curated display field. */
+export function applyIdentityCorrections(result, existingSubmissions, corrections) {
+  if (!Array.isArray(corrections) || !Array.isArray(existingSubmissions)) {
+    throw new Error("Identity corrections and existing submissions must be arrays")
+  }
+  const updated = structuredClone(existingSubmissions)
+  const seen = new Set()
+  const allowed = new Set(["dashboardId", "fromDate", "toDate", "sourceKey"])
+  for (const correction of corrections) {
+    if (!correction || typeof correction !== "object" || Array.isArray(correction)
+      || Object.keys(correction).length !== allowed.size
+      || Object.keys(correction).some((key) => !allowed.has(key))
+      || [...allowed].some((key) => typeof correction[key] !== "string" || !correction[key])) {
+      throw new Error("Each identity correction requires only dashboardId, fromDate, toDate and sourceKey")
+    }
+    if (seen.has(correction.dashboardId)) throw new Error("Duplicate identity correction dashboard ID")
+    seen.add(correction.dashboardId)
+    const existing = updated.filter((row) => row.id === correction.dashboardId)
+    const source = result.leads.filter((row) => row.id === correction.dashboardId)
+    const decision = result.manifest.decisions[correction.sourceKey]
+    if (existing.length !== 1 || source.length !== 1 || !decision
+      || decision.classification !== "lead" || decision.dashboardId !== correction.dashboardId) {
+      throw new Error("Identity correction must map one existing row to its approved lead source key and dashboard ID")
+    }
+    if (existing[0].date !== correction.fromDate || source[0].date !== correction.toDate
+      || correction.fromDate === correction.toDate) {
+      throw new Error("Identity correction dates do not exactly match the existing and source timestamps, or correction is unused")
+    }
+    const oldForm = existing[0].sourceForm ?? existing[0].type
+    const sourceForm = source[0].sourceForm ?? source[0].type
+    const oldEmail = text(existing[0].email)?.toLowerCase()
+    const sourceEmail = text(source[0].email)?.toLowerCase()
+    if (!oldEmail || oldEmail !== sourceEmail || oldForm !== sourceForm || isHeldLead(existing[0])) {
+      throw new Error("Identity correction cannot change normalized email or source form")
+    }
+    existing[0].date = correction.toDate
+  }
+  return updated
 }
 
 /**

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { freshManifest, mergeExistingSubmissions, reconcile, renderSubmissionsModule, rowsFromCompleteExport, seedExisting } from "./reconcile.mjs"
+import { spawnSync } from "node:child_process"
+import { applyIdentityCorrections, freshManifest, mergeExistingSubmissions, reconcile, renderSubmissionsModule, rowsFromCompleteExport, seedExisting } from "./reconcile.mjs"
 
 function row(id, submittedAt, data = {}) {
   return { id, submittedAt, data: { name: "Guest", email: "guest@example.com", ...data } }
@@ -34,6 +35,83 @@ test("accepts the approved reader envelope only with strict count metadata", () 
   assert.throws(() => rowsFromCompleteExport({ ...valid, result: { ...valid.result, fetched_pages: 0 } }, "xvzarybk"), /positive integer/)
   assert.throws(() => rowsFromCompleteExport({ ...valid, result: { ...valid.result, fetched_pages: "1" } }, "xvzarybk"), /positive integer/)
   assert.throws(() => rowsFromCompleteExport({ ...valid, result: { ...valid.result, fetched_count: 2 } }, "xvzarybk"), /exactly match/)
+})
+
+function dashboardExport(submissions, extra = {}) {
+  return {
+    source: "formspree-dashboard-export", formId: "xvzarybk",
+    exportedAt: "2026-10-28T12:00:00Z", complete: true,
+    expectedCount: submissions.length, inboxCount: submissions.length, spamCount: 0,
+    submissions, ...extra,
+  }
+}
+
+test("official dashboard exports require matching independently observed totals", () => {
+  const submission = { _date: "2026-08-01T00:00:00Z", email: "guest@example.com", name: "Guest" }
+  assert.equal(rowsFromCompleteExport(dashboardExport([submission]), "xvzarybk").length, 1)
+  for (const extra of [
+    { formId: "wrong" }, { complete: false }, { exportedAt: "invalid" },
+    { expectedCount: "1" }, { inboxCount: -1 }, { spamCount: 0.5 },
+    { inboxCount: 2 }, { expectedCount: 2, inboxCount: 2 },
+  ]) {
+    assert.throws(() => rowsFromCompleteExport(dashboardExport([submission], extra), "xvzarybk"))
+  }
+  assert.deepEqual(rowsFromCompleteExport(dashboardExport([]), "xvzarybk"), [])
+})
+
+test("dashboard export fallback preserves follow-ups and existing reader identities", () => {
+  const submissions = [
+    { _date: "2026-08-01T00:00:00Z", email: "Guest@Example.com", name: "Guest", message: "First" },
+    { _date: "2026-08-02T00:00:00Z", email: "guest@example.com", name: "Guest", message: "Follow-up" },
+  ]
+  const readerRows = rowsFromCompleteExport({
+    form: { hashid: "xvzarybk" },
+    result: { submissions: structuredClone(submissions), fetched_pages: 1, fetched_count: 2 },
+  }, "xvzarybk")
+  const previous = reconcile({ contactRows: readerRows, bookingRows: [], exportedAt: "2026-08-03T00:00:00Z" })
+  const dashboardRows = rowsFromCompleteExport(dashboardExport(submissions), "xvzarybk")
+  const current = reconcile({ contactRows: dashboardRows, bookingRows: [], manifest: previous.manifest, exportedAt: "2026-10-28T12:00:00Z" })
+  assert.deepEqual(current.manifest, previous.manifest)
+  assert.equal(Object.keys(current.manifest.decisions).length, 2)
+  assert.equal(current.delta.zeroDelta, true)
+  assert.deepEqual(current.summary.sourceFiles, [
+    "Formspree dashboard JSON export xvzarybk contact complete export",
+    "Formspree API xqeqllek booking complete export",
+  ])
+  const collision = rowsFromCompleteExport(dashboardExport([submissions[0], { ...submissions[0], message: "Different" }]), "xvzarybk")
+  assert.throws(
+    () => reconcile({ contactRows: collision, bookingRows: [], exportedAt: "2026-10-28T12:00:00Z" }),
+    /Ambiguous dashboard-export fallback identity/,
+  )
+})
+
+test("Formspree timezone-less UTC microseconds yield the same identities on UTC and Pacific hosts", () => {
+  const moduleUrl = new URL("./reconcile.mjs", import.meta.url).href
+  const script = `
+    import { rowsFromCompleteExport, reconcile } from ${JSON.stringify(moduleUrl)};
+    const submission = { _date: "2026-10-21T14:38:59.696584", name: "Guest", email: "guest@example.com" };
+    const readerRows = rowsFromCompleteExport({ form: { hashid: "xvzarybk" }, result: {
+      submissions: [structuredClone(submission)], fetched_pages: 1, fetched_count: 1
+    } }, "xvzarybk");
+    const baseline = reconcile({ contactRows: readerRows, bookingRows: [], exportedAt: "2026-10-28T12:00:00Z" });
+    const rows = rowsFromCompleteExport({ source: "formspree-dashboard-export", formId: "xvzarybk",
+      exportedAt: "2026-10-28T12:00:00Z", complete: true, expectedCount: 1, inboxCount: 1, spamCount: 0,
+      submissions: [submission] }, "xvzarybk");
+    const current = reconcile({ contactRows: rows, bookingRows: [], manifest: baseline.manifest, exportedAt: "2026-10-28T12:00:00Z" });
+    const key = Object.keys(current.manifest.decisions)[0];
+    current.manifest.decisions[key].classification = "lead";
+    const applied = reconcile({ contactRows: rows, bookingRows: [], manifest: current.manifest, exportedAt: "2026-10-28T12:00:00Z" });
+    console.log(JSON.stringify({ manifest: applied.manifest, date: applied.leads[0].date }));
+  `
+  const outputs = ["UTC", "America/Los_Angeles"].map((TZ) => {
+    const run = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+      env: { ...process.env, TZ }, encoding: "utf8",
+    })
+    assert.equal(run.status, 0, run.stderr)
+    return JSON.parse(run.stdout)
+  })
+  assert.deepEqual(outputs[0], outputs[1])
+  assert.equal(outputs[0].date, "2026-10-21T14:38:59.696Z")
 })
 
 test("uses a non-PII timestamp/email fallback only for approved reader rows without IDs", () => {
@@ -205,6 +283,20 @@ test("rejects implausible adultGuests before a misclassified row can be applied"
   )
 })
 
+test("labels numeric children while preserving descriptive guest details", () => {
+  const values = ["2", "1", "0", "2 children ages 4 and 7"]
+  const bookingRows = values.map((childGuests, i) => row(`children-${i}`, `2026-08-0${i + 1}T00:00:00Z`, {
+    form_key: "booking", adultGuests: "2", childGuests,
+  }))
+  const manifest = decidedManifest(Object.fromEntries(values.map((_, i) => [
+    `xqeqllek:children-${i}`, { classification: "lead", dashboardId: `b-children-${i}` },
+  ])))
+  const result = reconcile({ contactRows: [], bookingRows, manifest, exportedAt: "2026-08-05T00:00:00Z" })
+  assert.deepEqual(result.leads.map((lead) => lead.guests), [
+    "2 adults, 2 children", "2 adults, 1 child", "2 adults", "2 adults, 2 children ages 4 and 7",
+  ])
+})
+
 test("derives all summary counts from the same complete row set", () => {
   const contactRows = [
     row("lead", "2026-08-01T00:00:00Z"),
@@ -255,6 +347,11 @@ test("strictly seeds current dashboard IDs and classifies only parity-proven rem
   assert.throws(
     () => seedExisting({ contactRows, bookingRows: [], existingSubmissions, existingSummary: { ...existingSummary, rawRows: 999 }, exportedAt: "2026-08-04T00:00:00Z" }),
     /does not match complete exports/,
+  )
+  assert.throws(
+    () => seedExisting({ contactRows: [...contactRows, row("unreviewed-new", "2026-08-05T00:00:00Z")], bookingRows: [], existingSubmissions, existingSummary, exportedAt: "2026-08-06T00:00:00Z" }),
+    /does not match complete exports/,
+    "fresh submissions must not be silently seeded as historical spam",
   )
 })
 
@@ -345,6 +442,20 @@ test("apply merge keeps Typeform held leads that are not in Formspree exports", 
     () => mergeExistingSubmissions([{ ...formspreeLead, id: heldLead.id }], [heldLead]),
     /collides with a source row/,
   )
+
+  const result = reconcile({
+    contactRows: [],
+    bookingRows: [row("source", formspreeLead.date, { name: formspreeLead.name, email: formspreeLead.email })],
+    manifest: decidedManifest({ "xqeqllek:source": { classification: "lead", dashboardId: formspreeLead.id } }),
+    exportedAt: "2026-09-19T00:00:00Z",
+  })
+  const rendered = renderSubmissionsModule(result, [heldLead, formspreeLead])
+  const summary = JSON.parse(rendered.match(/submissionImportSummary = (\{[\s\S]*?\}) as const/)[1])
+  assert.equal(summary.visibleRows, 2)
+  assert.equal(summary.formspreeVisibleRows, 1)
+  assert.equal(summary.heldRows, 1)
+  assert.equal(summary.rawRows - summary.filteredRows, summary.formspreeVisibleRows)
+  assert.ok(summary.sourceFiles.includes("Preserved typeform inquiries (outside Formspree reconciliation)"))
 })
 
 test("apply merge rejects duplicate IDs and changed exact source identity", () => {
@@ -356,4 +467,21 @@ test("apply merge rejects duplicate IDs and changed exact source identity", () =
     /no longer matches its exact source identity/,
   )
   assert.throws(() => mergeExistingSubmissions([], [lead]), /no longer maps to a source row/)
+})
+
+test("identity corrections reject duplicates, unknown keys and changed source identity", () => {
+  const existing = [{ id: "current", date: "2026-08-01T00:00:01Z", email: "guest@example.com", sourceForm: "contact" }]
+  const result = {
+    manifest: decidedManifest({ "xvzarybk:source": { classification: "lead", dashboardId: "current" } }),
+    leads: [{ id: "current", date: "2026-08-01T00:00:00.000Z", email: "guest@example.com", sourceForm: "contact" }],
+  }
+  const correction = { dashboardId: "current", fromDate: existing[0].date, toDate: result.leads[0].date, sourceKey: "xvzarybk:source" }
+  for (const corrections of [
+    [correction, correction], [{ ...correction, unexpected: "value" }],
+    [{ ...correction, sourceKey: "unknown" }], [{ ...correction, dashboardId: "unknown" }],
+    [{ ...correction, toDate: existing[0].date }],
+  ]) assert.throws(() => applyIdentityCorrections(result, existing, corrections))
+  assert.throws(() => applyIdentityCorrections(result, [{ ...existing[0], email: "other@example.com" }], [correction]), /cannot change normalized email/)
+  assert.throws(() => applyIdentityCorrections(result, [{ ...existing[0], sourceForm: "booking" }], [correction]), /source form/)
+  assert.deepEqual(existing[0].date, correction.fromDate)
 })
